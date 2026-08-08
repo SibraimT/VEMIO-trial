@@ -1,0 +1,17 @@
+# Dataset crudo (pesado, no se versiona)
+data/*.csv
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Outputs pesados opcionales (dejamos las gráficas finales, no checkpoints de modelos)
+*.pkl
+*.joblib
