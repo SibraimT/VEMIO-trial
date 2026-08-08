@@ -54,8 +54,10 @@ design — see above). Zero rows dropped from the original 283,533.
 
 ## 2. Exploratory Analysis
 
+![Weekly demand by SKU](../outputs/weekly_demand_by_sku.png)
+
 Weekly demand was plotted for all 6 SKUs over the full 104-week history
-(`outputs/weekly_demand_by_sku.png`). Key observations:
+(`../outputs/weekly_demand_by_sku.png`). Key observations:
 
 - **Promotional spikes are clearly visible** and align with the combo date
   ranges in the data (e.g. Antitranspirante's largest spike, ~Aug-Sep 2025,
@@ -130,3 +132,139 @@ and weekly-aggregated data.
 it would have discarded roughly half the training data (the entire first
 year lacks a valid 52-week lag). `month` and `week_of_year` were used
 instead to capture seasonality without that data loss.
+
+## 4. Model Results & Comparison
+
+**XGBoost results (Test 10 weeks):**
+
+| SKU | MAPE | WMAPE | RMSE |
+|---|---|---|---|
+| Desodorante 150 ml A | 10.26% | 9.99% | 77.82 |
+| Cubito de pollo c/50 | 6.49% | 6.68% | 86.76 |
+| Shampoo Rizos 135 ml | 14.85% | 13.91% | 168.58 |
+
+**SARIMA results (Test 10 weeks):**
+
+| SKU | MAPE | WMAPE | RMSE |
+|---|---|---|---|
+| Desodorante 150 ml A | 59.87% | 58.78% | 371.59 |
+| Cubito de pollo c/50 | 15.85% | 17.32% | 218.28 |
+| Shampoo Rizos 135 ml | 12.68% | 11.98% | 128.76 |
+
+SARIMA was fit without a seasonal component (`seasonal_order=(0,0,0,0)`):
+with only 94 training weeks, there is not even two full annual cycles to
+estimate a 52-week seasonal term reliably — the same reasoning used to
+exclude `lag_52` from XGBoost's features.
+
+**Model selection (best WMAPE per SKU):**
+
+| SKU | Best model | WMAPE |
+|---|---|---|
+| Desodorante 150 ml A | XGBoost | 9.99% |
+| Cubito de pollo c/50 | XGBoost | 6.68% |
+| Shampoo Rizos 135 ml | SARIMA | 11.98% |
+
+**Key finding — no single model wins across all SKUs:**
+
+- **Desodorante** is the clearest case for promo-aware modeling. SARIMA
+  (58.78% WMAPE) performs *worse than the naive baseline* — it extrapolates
+  the tail of a recent promotion after it ends, since it has no visibility
+  into promo activity. XGBoost, which uses `has_promo`/`avg_discount` as
+  features, roughly halves the baseline's error.
+- **Cubito de pollo** shows the same pattern: SARIMA (17.32%) underperforms
+  both XGBoost (6.68%) and even the naive baseline (10.2%), because it was
+  deliberately fit without seasonality — exactly the signal that drives this
+  SKU (seasonality + trend, per the EDA).
+- **Shampoo Rizos**, the noisiest series, is the one case where the simpler
+  model wins: SARIMA (11.98%) slightly beats XGBoost (13.91%). With limited
+  training data (92 weeks) and weak seasonal/promo structure, XGBoost has
+  less signal to learn from and is more exposed to overfitting the lag
+  features to noise.
+
+**Conclusion:** model choice should be driven by what dominates each SKU's
+demand pattern — promo timing and seasonality favor a feature-rich model
+(XGBoost); noisy, weakly-structured series favor a simpler autoregressive
+model (SARIMA). A per-SKU model selection outperforms committing to a single
+model for the full catalog.
+
+## 4. Model Results & Comparison
+
+**XGBoost results (Test 10 weeks):**
+
+| SKU | MAPE | WMAPE | RMSE |
+|---|---|---|---|
+| Desodorante 150 ml A | 10.26% | 9.99% | 77.82 |
+| Cubito de pollo c/50 | 6.49% | 6.68% | 86.76 |
+| Shampoo Rizos 135 ml | 14.85% | 13.91% | 168.58 |
+
+**SARIMA results (Test 10 weeks):**
+
+| SKU | MAPE | WMAPE | RMSE |
+|---|---|---|---|
+| Desodorante 150 ml A | 59.87% | 58.78% | 371.59 |
+| Cubito de pollo c/50 | 15.85% | 17.32% | 218.28 |
+| Shampoo Rizos 135 ml | 12.68% | 11.98% | 128.76 |
+
+SARIMA was fit without a seasonal component (`seasonal_order=(0,0,0,0)`):
+with only 94 training weeks, there is not even two full annual cycles to
+estimate a 52-week seasonal term reliably — the same reasoning used to
+exclude `lag_52` from XGBoost's features.
+
+**Model selection (best WMAPE per SKU):**
+
+| SKU | Best model | WMAPE |
+|---|---|---|
+| Desodorante 150 ml A | XGBoost | 9.99% |
+| Cubito de pollo c/50 | XGBoost | 6.68% |
+| Shampoo Rizos 135 ml | SARIMA | 11.98% |
+
+**Key finding — no single model wins across all SKUs:**
+
+- **Desodorante** is the clearest case for promo-aware modeling. SARIMA
+  (58.78% WMAPE) performs *worse than the naive baseline* — it extrapolates
+  the tail of a recent promotion after it ends, since it has no visibility
+  into promo activity. XGBoost, which uses `has_promo`/`avg_discount` as
+  features, roughly halves the baseline's error.
+- **Cubito de pollo** shows the same pattern: SARIMA (17.32%) underperforms
+  both XGBoost (6.68%) and even the naive baseline (10.2%), because it was
+  deliberately fit without seasonality — exactly the signal that drives this
+  SKU (seasonality + trend, per the EDA).
+- **Shampoo Rizos**, the noisiest series, is the one case where the simpler
+  model wins: SARIMA (11.98%) slightly beats XGBoost (13.91%). With limited
+  training data (92 weeks) and weak seasonal/promo structure, XGBoost has
+  less signal to learn from and is more exposed to overfitting the lag
+  features to noise.
+
+**Conclusion:** model choice should be driven by what dominates each SKU's
+demand pattern — promo timing and seasonality favor a feature-rich model
+(XGBoost); noisy, weakly-structured series favor a simpler autoregressive
+model (SARIMA). A per-SKU model selection outperforms committing to a single
+model for the full catalog.
+
+## 5. Final Forecast (8–12 Weeks Ahead)
+
+![10-week forecast by SKU](../outputs/forecast_by_sku.png)
+
+The winning model per SKU was re-trained on the full history and used to
+forecast 10 weeks ahead:
+
+- **Cubito de pollo** (~1060–1150 units) is consistent with the trailing
+  trend and considered reliable for planning purposes.
+- **Desodorante** (~650–690 units, flat) likely **underestimates** actual
+  demand for this window. This SKU has a strong Feb–Mar seasonal spike each
+  year tied to "Combo Verano" promotions; since `has_promo`/`avg_discount`
+  are held constant at their last observed (non-promo) value — the only
+  information available about the future — the model has no way to
+  anticipate a promotional jump. This forecast should be read as a
+  **"no new promotion" baseline scenario**, to be adjusted upward manually
+  if a promotion is planned, or re-run with `has_promo=1` and a realistic
+  `avg_discount` for the relevant weeks.
+- **Shampoo Rizos** (SARIMA) converges to a near-constant ~965 units after
+  ~3 weeks, losing the volatility visible historically — an expected
+  property of a non-seasonal ARIMA at this horizon, more reliable as a
+  short-term (1–3 week) estimate than further out.
+
+**Takeaway:** point forecasts alone are not sufficient for SKUs with known
+future promotional activity (Desodorante) or high noise (Shampoo Rizos) —
+both should be flagged for manual review / scenario adjustment rather than
+used as-is for inventory planning.
