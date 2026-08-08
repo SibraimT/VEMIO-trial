@@ -105,3 +105,7 @@ Both promotions moved large unit volume, but both are net-negative once baseline
 - **Replicate (with adjustment): Verano Desodorante 2.** Incremental demand is real and profitable (+$3,678 on uplift alone). The fix is discount depth, not the mechanic — a shallower discount (elasticity ≈ -3.0) should still trigger meaningful uplift while protecting baseline margin.
 - **Do not replicate: Cierre Trimestre Desodorante.** Even its incremental units sold at a loss — a structural problem, not a calibration one.
 - **Root cause:** unit cost has risen ~10% over the observed history, but discount depths don't appear to have been re-calibrated against that. Reviewing discount tiers against *current* cost before each promotion is likely the highest-leverage, lowest-effort fix available.
+
+## 8. Use of AI in This Case
+
+Claude was used throughout development: (1) writing and debugging code — cleaning functions, feature engineering, and the uplift/margin decomposition logic; (2) drafting and editing the prose in this document and in `business_recommendations.md`, to keep the technical write-up concise and the business version free of jargon; (3) sounding out methodology decisions — e.g. whether to control for `has_promo` separately from price in the elasticity model, and whether to use a year-over-year or before/after baseline for uplift. Every modeling choice, number, and conclusion in this document was verified against the notebook's actual outputs before being written here — AI assistance sped up execution and editing, not the validation of results.
