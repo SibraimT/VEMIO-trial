@@ -268,3 +268,111 @@ forecast 10 weeks ahead:
 future promotional activity (Desodorante) or high noise (Shampoo Rizos) —
 both should be flagged for manual review / scenario adjustment rather than
 used as-is for inventory planning.
+
+## 6. Challenge B: SKU Selection
+
+The case requires one SKU with sufficient historical price/discount variation
+for elasticity estimation. Effective price (`sell_in_amount / sell_in_quantity`,
+excluding gift and cancelled transactions) was compared across all 6 SKUs by
+coefficient of variation (CV):
+
+| SKU | Mean price | Std | CV (%) | Transactions |
+|---|---|---|---|---|
+| **Desodorante 150 ml A** | **52.67** | **5.32** | **10.10** | **64,325** |
+| Antitranspirante 150 ml C | 55.98 | 5.58 | 9.98 | 35,113 |
+| Cubito de pollo c/50 | 197.76 | 14.10 | 7.13 | 52,508 |
+| Shampoo Rizos 135 ml | 19.42 | 1.17 | 6.00 | 69,840 |
+| Shampoo 135 ml Azul | 19.05 | 0.93 | 4.89 | 44,608 |
+| Shampoo 180ml Verde | 16.16 | 0.77 | 4.79 | 16,139 |
+
+**Selected: Desodorante 150 ml A** — highest price CV among all SKUs, second-
+highest transaction volume (only Antitranspirante has a comparable CV, but
+with roughly half the sample size), and prior evidence from Challenge A of
+demand clearly responding to its promotions — favorable conditions for an
+elasticity estimate to reflect a real price-demand relationship rather than
+noise.
+
+## 7. Challenge B: Elasticity Model Approach
+
+**Model:** log-log regression of quantity on price, controlling for calendar
+month:
+
+```
+log(quantity) = β₀ + β₁ · log(price) + β₂ · month_dummies
+```
+
+**Why log-log:** the coefficient β₁ in this specification is directly
+interpretable as price elasticity (% change in demand per 1% change in
+price) — the standard definition of price sensitivity, and the one the case
+asks to estimate.
+
+**Why control for month:** Desodorante has strong seasonality (confirmed in
+Challenge A — Feb-Mar and Aug-Sep spikes tied to "Combo Verano"), and price
+also falls during those same windows since that's when promotions run.
+Without controlling for month, the model would confuse two distinct effects:
+demand rising because price fell (real elasticity) vs. demand rising because
+it's high season, with price coincidentally falling too. Leaving this
+uncontrolled would inflate the elasticity estimate, overstating how
+price-sensitive demand actually is.
+
+**Why not also control for promo activity:** `has_promo` and `price` are
+not independent — a lower price *is* how a promo manifests, mechanically.
+Including both would introduce collinearity and make the price coefficient
+unstable. It's also unnecessary here: the elasticity simulator only needs to
+answer "at this price, what demand do we expect," regardless of whether that
+price originated from a formal promotion or an organic discount.
+
+## 8. Challenge B: Elasticity Estimate
+
+![Price-demand relationship — Desodorante 150 ml A](../outputs/price_elasticity_desodorante.png)
+
+**Result:** estimated price elasticity of **-2.998** (p < 0.001, t = -19.05,
+R² = 0.932). Demand is elastic (|elasticity| > 1): a 1% price increase is
+associated with a ~3% drop in weekly volume. Month fixed effects confirm the
+seasonality already seen in Challenge A — May through September carry large,
+highly significant positive coefficients relative to January.
+
+**Caveat:** this elasticity is higher than typical for a recurring
+personal-care product (often -1 to -2 in the category). A likely driver:
+this measures **sell-in to distributor**, not consumer-level sales. When
+price drops during a promotion, distributors often buy ahead of immediate
+need ("forward buying") to capture the discount, inflating that week's
+recorded volume beyond true end-consumer demand. This is a real limitation
+of estimating elasticity from sell-in data — the result should be read as
+"distributor order response to price," not strictly "consumer demand," and
+is flagged here rather than presented as an unconditional number.
+
+**Additional note:** observed prices cluster around a handful of discrete
+levels (~$44, $46.5, $48, $55, $57.5, $60.5) rather than varying
+continuously — consistent with a small number of fixed discount tiers
+across combos, rather than daily price changes. The fitted curve
+interpolates between these clusters; confidence in the elasticity estimate
+is strongest near the observed price levels and weaker in the gaps between
+them.
+
+## 9. Challenge B: Price Simulator
+
+A simulator was built combining the fitted elasticity model with current
+unit cost to project, for any price within the observed range
+($43.99–$60.67): expected demand, revenue, and margin ($ and %).
+
+**Key finding:** at the lower end of the observed price range (~$44-47),
+simulated margin is negative (-13% to -6%). This reflects the cost-basis
+assumption above — those price levels were historically paired with a lower
+unit cost (~$45 in early 2025), but the simulator uses today's unit cost
+(~$49.70). Under current cost conditions, those historical low prices would
+be unprofitable, regardless of the demand gain they'd generate. This
+effectively rules out the bottom of the observed range as a viable pricing
+zone today.
+
+**No interior optimum:** across the observed price range, revenue is
+maximized at the lowest price ($43.99) and margin ($) at the highest
+($60.67) — both range boundaries, not an interior "sweet spot." This
+follows directly from elastic demand (elasticity ≈ -3.0): revenue falls
+and margin rises monotonically with price throughout this range.
+
+**Recommended pricing zone: $55–$60**, not a single point. This range keeps
+margin solidly positive (14-18%), overlaps with prices already charged
+historically (so customer acceptance is evidenced, not extrapolated), and
+avoids the ~62% volume collapse seen at the top of the range ($44 →
+~1,934 units/week vs. $60.67 → ~738 units/week).
