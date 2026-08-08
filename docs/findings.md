@@ -269,12 +269,14 @@ future promotional activity (Desodorante) or high noise (Shampoo Rizos) —
 both should be flagged for manual review / scenario adjustment rather than
 used as-is for inventory planning.
 
-## 6. Challenge B: SKU Selection
+## 6. Challenge B: Price Elasticity — Desodorante 150 ml A
 
-The case requires one SKU with sufficient historical price/discount variation
-for elasticity estimation. Effective price (`sell_in_amount / sell_in_quantity`,
-excluding gift and cancelled transactions) was compared across all 6 SKUs by
-coefficient of variation (CV):
+### 6.1 SKU Selection
+
+The case requires one SKU with sufficient historical price/discount
+variation. Effective price (`sell_in_amount / sell_in_quantity`, excluding
+gift and cancelled transactions) was compared across all 6 SKUs by
+coefficient of variation:
 
 | SKU | Mean price | Std | CV (%) | Transactions |
 |---|---|---|---|---|
@@ -285,94 +287,146 @@ coefficient of variation (CV):
 | Shampoo 135 ml Azul | 19.05 | 0.93 | 4.89 | 44,608 |
 | Shampoo 180ml Verde | 16.16 | 0.77 | 4.79 | 16,139 |
 
-**Selected: Desodorante 150 ml A** — highest price CV among all SKUs, second-
-highest transaction volume (only Antitranspirante has a comparable CV, but
-with roughly half the sample size), and prior evidence from Challenge A of
-demand clearly responding to its promotions — favorable conditions for an
-elasticity estimate to reflect a real price-demand relationship rather than
-noise.
+**Selected: Desodorante 150 ml A** — highest price CV, second-highest
+transaction volume (only Antitranspirante has a comparable CV, with roughly
+half the sample size), and prior evidence from Challenge A of demand
+clearly responding to its promotions.
 
-## 7. Challenge B: Elasticity Model Approach
+### 6.2 Elasticity Model
 
-**Model:** log-log regression of quantity on price, controlling for calendar
-month:
+**Model:** log-log regression of quantity on price, controlling for
+calendar month:
 
 ```
 log(quantity) = β₀ + β₁ · log(price) + β₂ · month_dummies
 ```
 
-**Why log-log:** the coefficient β₁ in this specification is directly
-interpretable as price elasticity (% change in demand per 1% change in
-price) — the standard definition of price sensitivity, and the one the case
-asks to estimate.
+β₁ is directly interpretable as price elasticity. Month is controlled for
+because Desodorante has strong seasonality (Challenge A) that moves together
+with price (promotions run during high season), which would otherwise
+inflate the elasticity estimate. Promo activity (`has_promo`) is *not*
+controlled for separately, since it's mechanically redundant with price
+(lower price *is* the promo) and would introduce collinearity.
 
-**Why control for month:** Desodorante has strong seasonality (confirmed in
-Challenge A — Feb-Mar and Aug-Sep spikes tied to "Combo Verano"), and price
-also falls during those same windows since that's when promotions run.
-Without controlling for month, the model would confuse two distinct effects:
-demand rising because price fell (real elasticity) vs. demand rising because
-it's high season, with price coincidentally falling too. Leaving this
-uncontrolled would inflate the elasticity estimate, overstating how
-price-sensitive demand actually is.
-
-**Why not also control for promo activity:** `has_promo` and `price` are
-not independent — a lower price *is* how a promo manifests, mechanically.
-Including both would introduce collinearity and make the price coefficient
-unstable. It's also unnecessary here: the elasticity simulator only needs to
-answer "at this price, what demand do we expect," regardless of whether that
-price originated from a formal promotion or an organic discount.
-
-## 8. Challenge B: Elasticity Estimate
+**Result:** estimated elasticity of **-2.998** (p < 0.001, t = -19.05,
+R² = 0.932) — demand is elastic: a 1% price increase is associated with a
+~3% drop in weekly volume. Month effects confirm the seasonality from
+Challenge A (May-September significantly higher than January).
 
 ![Price-demand relationship — Desodorante 150 ml A](../outputs/price_elasticity_desodorante.png)
 
-**Result:** estimated price elasticity of **-2.998** (p < 0.001, t = -19.05,
-R² = 0.932). Demand is elastic (|elasticity| > 1): a 1% price increase is
-associated with a ~3% drop in weekly volume. Month fixed effects confirm the
-seasonality already seen in Challenge A — May through September carry large,
-highly significant positive coefficients relative to January.
+Observed prices cluster around ~6 discrete levels ($44–$60.67) rather than
+varying continuously, consistent with a small number of fixed discount
+tiers. The fitted curve interpolates between these clusters.
 
-**Caveat:** this elasticity is higher than typical for a recurring
-personal-care product (often -1 to -2 in the category). A likely driver:
-this measures **sell-in to distributor**, not consumer-level sales. When
-price drops during a promotion, distributors often buy ahead of immediate
-need ("forward buying") to capture the discount, inflating that week's
-recorded volume beyond true end-consumer demand. This is a real limitation
-of estimating elasticity from sell-in data — the result should be read as
-"distributor order response to price," not strictly "consumer demand," and
-is flagged here rather than presented as an unconditional number.
+### 6.3 Price Simulator
 
-**Additional note:** observed prices cluster around a handful of discrete
-levels (~$44, $46.5, $48, $55, $57.5, $60.5) rather than varying
-continuously — consistent with a small number of fixed discount tiers
-across combos, rather than daily price changes. The fitted curve
-interpolates between these clusters; confidence in the elasticity estimate
-is strongest near the observed price levels and weaker in the gaps between
-them.
+A simulator combines the fitted elasticity model with the most recently
+observed unit cost (~$49.70) to project, for any price within the observed
+range **($43.99–$60.67)**: expected demand, revenue, and margin ($ and %).
 
-## 9. Challenge B: Price Simulator
+![Revenue and margin vs. price](../outputs/price_simulator_revenue_margin.png)
 
-A simulator was built combining the fitted elasticity model with current
-unit cost to project, for any price within the observed range
-($43.99–$60.67): expected demand, revenue, and margin ($ and %).
+**Finding:** at the lower end of the range (~$44-47), simulated margin is
+**negative** (-13% to -6%). This is not a modeling error — those price
+levels historically occurred when unit cost was lower (~$45 in early 2025);
+evaluated against today's cost (~$49.70), they would be unprofitable.
 
-**Key finding:** at the lower end of the observed price range (~$44-47),
-simulated margin is negative (-13% to -6%). This reflects the cost-basis
-assumption above — those price levels were historically paired with a lower
-unit cost (~$45 in early 2025), but the simulator uses today's unit cost
-(~$49.70). Under current cost conditions, those historical low prices would
-be unprofitable, regardless of the demand gain they'd generate. This
-effectively rules out the bottom of the observed range as a viable pricing
-zone today.
+### 6.4 Recommended Price Zone
 
-**No interior optimum:** across the observed price range, revenue is
-maximized at the lowest price ($43.99) and margin ($) at the highest
-($60.67) — both range boundaries, not an interior "sweet spot." This
-follows directly from elastic demand (elasticity ≈ -3.0): revenue falls
-and margin rises monotonically with price throughout this range.
+No interior optimum exists in this range: revenue is maximized at the
+lowest observed price ($43.99, ~1,934 units/week) and margin ($) at the
+highest ($60.67, ~738 units/week) — both range boundaries, not a "sweet
+spot" in between. This follows directly from elastic demand: revenue falls
+and margin rises monotonically with price throughout the observed range.
 
-**Recommended pricing zone: $55–$60**, not a single point. This range keeps
-margin solidly positive (14-18%), overlaps with prices already charged
-historically (so customer acceptance is evidenced, not extrapolated), and
-avoids the ~62% volume collapse seen at the top of the range ($44 →
-~1,934 units/week vs. $60.67 → ~738 units/week).
+**Recommendation: price in the $55–$60 zone**, not a single point:
+
+- Margin stays solidly positive (~14–18%), clear of the ~$50 break-even.
+- Overlaps with prices already charged historically — customer acceptance
+  at this level is evidenced by real data, not extrapolated.
+- Avoids the ~62% volume collapse seen at the top of the range.
+
+**No extrapolation:** all estimates and the recommended zone stay strictly
+within the observed range ($43.99–$60.67); no projection is made outside it.
+
+### 6.5 Risks & Assumptions
+
+1. **Sell-in, not consumer demand.** Elasticity is estimated from
+   distributor sell-in, not end-consumer sales. Forward buying around
+   promotions likely inflates the measured sensitivity — true consumer-level
+   elasticity is probably lower in magnitude.
+2. **Cost held fixed at today's level.** Unit cost has risen ~10% over the
+   observed history (step changes from supplier updates); if it rises again,
+   actual margins at any price would be lower than projected here.
+3. **Sparse coverage within range.** Prices cluster around ~6 discrete
+   levels; the fitted curve is more reliable near those levels than in the
+   gaps between them.
+4. **Limited controls.** Only calendar month is controlled for; other
+   unobserved factors (competitor actions, macro conditions, distribution
+   changes) could bias the estimate in either direction.
+5. **SKU-specific.** This elasticity applies to Desodorante 150 ml A only
+   and should not be assumed to generalize to other SKUs.
+
+## 7. Challenge C: Promotional Uplift — Desodorante 150 ml A
+
+### 7.1 Methodology
+
+**Selected promotions:** Combo Verano Desodorante 2 (Mar–May 2026, 17.1%
+avg discount, largest promo in the dataset) and Combo Cierre Trimestre
+Desodorante (Sep–Oct 2026, 21.1% avg discount, the deepest discount of all
+19 combos). Both are on the same SKU used in Challenges A and B, connecting
+uplift findings directly to the elasticity and forecasting results already
+established.
+
+**Method:** before/after baseline. Baseline weekly demand is the average of
+the 6 weeks immediately preceding each promotion (non-promotional, no
+overlap with another Desodorante combo). Incremental units are actual units
+sold during the promotion minus (baseline weekly average × promo duration
+in weeks). A year-over-year baseline was not used because the same calendar
+window in the prior year also carried a promotion for this SKU — that would
+compare promo-to-promo, not isolate an incremental effect.
+
+**Limitation:** this method assumes baseline demand would have stayed flat
+absent the promotion — it doesn't capture trend or seasonality within the
+promotion window itself, a bigger risk for the 69-day Verano 2 promotion
+than the 27-day Cierre Trimestre.
+
+### 7.2 Results
+
+| Metric | Verano 2 | Cierre Trimestre |
+|---|---|---|
+| Discount depth | 17.1% | 21.1% |
+| Duration | 10 weeks | 4 weeks |
+| Uplift (units) | +7,436 (+109.3%) | +3,574 (+96.5%) |
+| Uplift per point of discount | 6.39 | 4.57 |
+| Margin/unit (normal) | $10.40 | $10.43 |
+| Margin/unit (during promo) | $0.49 | **-$1.79** |
+| Margin from incremental units | **+$3,678** | **-$6,384** |
+| Margin lost on baseline units | -$67,446 | -$45,233 |
+| **Net incremental margin** | **-$63,768** | **-$51,617** |
+
+Both promotions generated large positive unit uplift, but both were
+net-negative in margin once accounting for baseline units sold at a
+discount they didn't need. The critical difference: Verano 2's incremental
+units were still profitable; Cierre Trimestre's were not, even before
+accounting for baseline cannibalization.
+
+### 7.3 Recommendation
+
+**Replicate (with adjustment): Combo Verano Desodorante 2.** Its
+incremental demand is real and profitable (+$3,678 margin on uplift alone).
+The fix is discount depth, not the promotion itself — a shallower discount
+would still trigger meaningful uplift (elasticity ≈ -3.0, Challenge B)
+while protecting margin on baseline volume.
+
+**Do not replicate: Combo Cierre Trimestre Desodorante.** Even its
+incremental units sold at a loss. At current unit cost, no volume of
+incremental sales makes this discount depth (21.1%) profitable — this isn't
+a calibration issue, it's a structural loss.
+
+**Root cause:** unit cost has risen ~10% over the observed history
+(Section 6.5), but discount depths do not appear to have been re-calibrated
+against that rising cost. Reviewing discount tiers against *current* cost
+before each promotion is likely the highest-leverage fix available to the
+commercial team.
