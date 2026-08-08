@@ -37,5 +37,17 @@ is mathematically undefined (division by zero). Since gift rows are already
 excluded from price/elasticity analysis, this was left null rather than forcing
 an arbitrary value.
 
-### Missing product_cost (~0.04%)
-*(pendiente)*
+### Missing product_cost (~0.04%, 110 rows)
+Initially assumed unit cost (`product_cost / sell_in_quantity`) would be
+constant per SKU, like `product_margin`. Validation showed this is false:
+unit cost is a **step function over time** — it stays fixed for months, then
+jumps to a new level (consistent with periodic supplier cost updates).
+
+Missing values were imputed using the median unit cost of that same
+`product_code` **within the same year-month**, not a global median, to avoid
+mixing an old cost period with a new one. A `product_cost_imputed` flag was
+added for traceability.
+
+### Cleaning summary
+All nulls resolved except one `bruto` value (gift transaction, left null by
+design — see above). Zero rows dropped from the original 283,533.

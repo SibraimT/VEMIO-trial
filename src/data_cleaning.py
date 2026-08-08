@@ -84,3 +84,25 @@ def fill_residual_discount_bruto(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
+
+def fill_product_cost(df: pd.DataFrame) -> pd.DataFrame:
+    """Impute missing product_cost using the median unit cost of that same
+    product_code within the same year-month, since unit cost is a step
+    function over time (not constant across the full period)."""
+    df = df.copy()
+    df["year_month"] = df["date"].dt.to_period("M")
+
+    valid = df[df["product_cost"].notnull() & (df["sell_in_quantity"] > 0)].copy()
+    valid["unit_cost"] = valid["product_cost"] / valid["sell_in_quantity"]
+
+    median_unit_cost = valid.groupby(["product_code", "year_month"])["unit_cost"].median()
+
+    missing_mask = df["product_cost"].isnull()
+    keys = list(zip(df.loc[missing_mask, "product_code"], df.loc[missing_mask, "year_month"]))
+    df.loc[missing_mask, "product_cost"] = [
+        median_unit_cost.get(k, np.nan) for k in keys
+    ] * df.loc[missing_mask, "sell_in_quantity"]
+
+    df["product_cost_imputed"] = missing_mask  # traceability flag
+    df = df.drop(columns=["year_month"])
+    return df
