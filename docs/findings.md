@@ -21,7 +21,21 @@ these fields are constant per `product_code` across the dataset, so the missing
 values were filled by mapping from other rows of the same SKU — no row dropped.
 
 ### Missing discount / bruto (~5.5%)
-*(pendiente — lo llenamos en el siguiente paso)*
+`discount`, `bruto`, and `sell_in_amount` are algebraically related:
+`bruto = sell_in_amount / (1 - discount)`. Most nulls were resolved by deriving
+one column from the other two. For rows with no promotion (`id_combo` null),
+missing values were treated as an organic sale (`discount = 0`).
+
+For 3 residual rows that belonged to a promotion but had both `discount` and
+`bruto` missing, `discount` was imputed using the average discount of that same
+`id_combo` (from other transactions in the same promotion), then `bruto` was
+derived from it.
+
+One row remains null in `bruto`: it is a gift/sample transaction
+(`sell_in_amount = 0`, `discount = 1.0`), where `bruto = amount / (1-discount)`
+is mathematically undefined (division by zero). Since gift rows are already
+excluded from price/elasticity analysis, this was left null rather than forcing
+an arbitrary value.
 
 ### Missing product_cost (~0.04%)
 *(pendiente)*
