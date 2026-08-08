@@ -15,3 +15,4 @@ venv/
 # Outputs pesados opcionales (dejamos las gráficas finales, no checkpoints de modelos)
 *.pkl
 *.joblib
+clean.py 
