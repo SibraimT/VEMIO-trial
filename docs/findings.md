@@ -103,3 +103,30 @@ and 31.7% (Shampoo Rizos). The error ranking matches the EDA: SKUs with
 cleaner seasonal patterns forecast better with a naive approach, while
 Desodorante's error is inflated by year-over-year shifts in promotional
 timing that seasonal naive cannot capture.
+
+**Models evaluated:**
+
+1. **XGBoost (gradient boosting on tabular features)** — chosen first because
+   it can directly incorporate a promo flag and lag features, which is
+   exactly what seasonal naive is missing (see the Desodorante observation
+   above). Features: lags (1, 2, 52 weeks), month, week-of-year, and
+   promo-activity flag/discount depth for that week.
+2. **SARIMA (Seasonal ARIMA)** — a classical statistical baseline that models
+   the series purely from its own past values (trend + seasonality), without
+   external regressors like promo activity. Included as a second comparison
+   point to validate whether a simpler, more interpretable model performs
+   competitively without promo information.
+
+Both are compared against the Seasonal Naive baseline using the same
+walk-forward 10-week holdout.
+
+The weekly promo flag (`has_promo`) was validated against the known combo
+date ranges — it correctly activates the same week each promotion starts,
+with a visible demand jump (e.g. Antitranspirante: 457 → 760 units the week
+"Combo Verano" began), confirming correct alignment between transaction-level
+and weekly-aggregated data.
+
+`lag_52` was excluded as a feature: with only 94 training weeks per SKU,
+it would have discarded roughly half the training data (the entire first
+year lacks a valid 52-week lag). `month` and `week_of_year` were used
+instead to capture seasonality without that data loss.
