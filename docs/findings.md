@@ -7,7 +7,7 @@
 - **Cancelled tickets** (`sell_in_quantity = 0`, 500 rows): kept with `is_cancelled` flag; excluded from demand aggregation.
 - **Gift/sample transactions** (`sell_in_amount = 0`, qty > 0, 500 rows): kept with `is_gift` flag. Included in Challenge A (real units moved); excluded from Challenge B (unit_price = 0 would distort the regression).
 - **Missing metadata** (1 row): category/subcategory/brand/basket are constant per `product_code`, so filled by mapping from other rows of the same SKU.
-- **Missing discount/bruto** (~5.5%): derived algebraically where possible (`bruto = sell_in_amount / (1-discount)`); nulls with no promotion (`id_combo` null) treated as organic sale (`discount=0`); 3 residual rows imputed using the average discount of the same `id_combo`. One row remains null in `bruto` (gift transaction, division by zero) — left null by design, already excluded from Challenge B.
+- Missing discount (~5.5%, 15,538 rows) / bruto (~0.04%, 110 rows): derived algebraically where possible (bruto = sell_in_amount / (1-discount)); nulls with no promotion (id_combo null) treated as organic sale (discount=0); 3 residual rows imputed using the average discount of the same id_combo. One row remains null in bruto (gift transaction, division by zero) — left null by design, already excluded from Challenge B.
 - **Missing `product_cost`** (~0.04%, 110 rows): unit cost is a **step function over time** (not constant per SKU, as initially assumed) — validated, then imputed using the median unit cost of the same SKU **within the same year-month**, flagged with `product_cost_imputed`.
 
 ## 2. Exploratory Analysis
@@ -30,15 +30,17 @@ Promotional spikes are clearly visible and align with combo date ranges, confirm
 
 ## 4. Model Results & Comparison
 
-| SKU | Naive WMAPE | XGBoost WMAPE | SARIMA WMAPE | **Best model** |
+| SKU | Naive | XGBoost (recursive) | SARIMA | Winner |
 |---|---|---|---|---|
-| Desodorante 150 ml A | 18.9% | **9.99%** | 58.78% | XGBoost |
-| Cubito de pollo c/50 | 10.2% | **6.68%** | 17.32% | XGBoost |
-| Shampoo Rizos 135 ml | 31.7% | 13.91% | **11.98%** | SARIMA |
+| Desodorante 150 ml A | 18.9% | **7.71%** | 58.78% | XGBoost |
+| Cubito de pollo c/50 | 10.2% | **7.75%** | 17.32% | XGBoost |
+| Shampoo Rizos 135 ml | 31.7% | 14.24% | **11.98%** | SARIMA |
 
 *(Full MAPE/RMSE breakdown in the notebook.)*
 
 **No single model wins across all SKUs.** Desodorante and Cubito are dominated by promo timing/trend, which SARIMA can't see (it even underperforms the naive baseline on both). Shampoo Rizos, the noisiest series with the least structure, favors the simpler SARIMA — XGBoost has less signal to learn from and overfits the lag features to noise. **Conclusion:** model choice should follow what dominates each SKU's pattern; per-SKU selection beats committing to one model for the whole catalog.
+
+Note on evaluation protocol: an earlier version of this analysis reported XGBoost's test WMAPE using one-step-ahead evaluation — real (not model-predicted) values for lag_1/lag_2 at each test week — while SARIMA was evaluated in true 10-week-ahead mode. This was caught during review and corrected: the table above reports XGBoost's recursive WMAPE, matching both SARIMA's evaluation protocol and the recursive mode actually used for the deployed forecast in Section 5. Interestingly, recursive evaluation improved Desodorante's WMAPE (9.99% → 7.71%) and slightly worsened Cubito's (6.68% → 7.75%) and Shampoo Rizos' (13.91% → 14.24%) — the winning model per SKU is unchanged.
 
 ## 5. Final Forecast (8–12 Weeks Ahead)
 
