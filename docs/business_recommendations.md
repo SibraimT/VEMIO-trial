@@ -22,20 +22,24 @@ planning so the forecast reflects reality, not a "no promotion" scenario.
 
 ---
 
-## 2. The summer promotion is profitable — but the discount is deeper than
-   it needs to be
+## 2. The summer promotion drives real incremental sales — but the
+   discount is too deep to be profitable overall
 
-This is good news with a catch. The summer promotion genuinely sells extra
-units that wouldn't have sold otherwise, and those extra units are
-profitable. The problem is that the discount is deep enough that it also
-gets applied to sales that would have happened anyway, even without a
-promotion — and that part is pure lost margin, not incremental sales.
+This one needs a closer look. The summer promotion does sell extra units
+that wouldn't have sold otherwise, and those extra units are individually
+profitable. But the discount is deep enough that it also applies to sales
+that would have happened anyway, even without a promotion — and giving up
+margin on those is a real cost, not a rounding error. Once you count both
+effects together, the promotion currently loses money overall, even though
+the incremental demand it creates is genuine and valuable.
 
 **What to do:** test a shallower discount on the next run of this
 promotion. Based on how customers have responded to price changes
 historically, a smaller discount should still trigger a meaningful demand
 increase, while giving up much less margin on sales that didn't need a
-discount to happen.
+discount to happen. The goal isn't to abandon this promotion — it's to
+keep the demand response while protecting the margin currently being lost
+on sales that were already going to happen.
 
 ---
 
